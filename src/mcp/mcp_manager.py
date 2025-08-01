@@ -139,7 +139,7 @@ class MCPManager(LoggerMixin):
                 raise ValueError(f"Server '{server_name}' not found")
             servers_to_try = [server_name]
         else:
-            servers_to_try = self._find_servers_with_tool(tool_name)
+            servers_to_try = await self._find_servers_with_tool(tool_name)
         
         if not servers_to_try:
             raise ValueError(f"No servers found with tool '{tool_name}'")
@@ -177,14 +177,14 @@ class MCPManager(LoggerMixin):
         # All servers failed
         raise RuntimeError(f"All MCP servers failed for tool '{tool_name}'. Last error: {last_error}")
     
-    def _find_servers_with_tool(self, tool_name: str) -> List[str]:
+    async def _find_servers_with_tool(self, tool_name: str) -> List[str]:
         """Find servers that have a specific tool."""
         servers_with_tool = []
         
         for name, server in self.servers.items():
             # Check if server has the tool in its capabilities
             if server.has_capability("tools"):
-                tools_info = server.get_capability_info("tools")
+                tools_info = await server.get_capability_info("tools")
                 if tools_info and tool_name in tools_info:
                     servers_with_tool.append(name)
         

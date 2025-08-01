@@ -197,18 +197,41 @@ class ConfigurationManager:
         self.load_configuration()
     
     def validate(self) -> bool:
-        """Validate configuration."""
-        required_keys = [
-            "chatbot.name",
-            "chatbot.version",
-            "llm.default_provider"
-        ]
-        
-        for key in required_keys:
-            if not self.get(key):
-                return False
-        
-        return True
+        """Validate the configuration."""
+        try:
+            # Check for required sections
+            required_sections = ["chatbot", "llm"]
+            for section in required_sections:
+                if section not in self.config:
+                    return False
+            
+            # Check for required LLM providers
+            if "llm" in self.config and "providers" in self.config["llm"]:
+                providers = self.config["llm"]["providers"]
+                if not providers:
+                    return False
+                
+                # Check that at least one provider has required fields
+                for provider_name, provider_config in providers.items():
+                    if not isinstance(provider_config, dict):
+                        continue
+                    
+                    # Check for required fields (varies by provider)
+                    if provider_name == "openai":
+                        if "api_key" not in provider_config:
+                            return False
+                    elif provider_name == "anthropic":
+                        if "api_key" not in provider_config:
+                            return False
+            
+            return True
+            
+        except Exception:
+            return False
+    
+    def validate_configuration(self) -> bool:
+        """Validate the configuration (alias for validate method)."""
+        return self.validate()
     
     def to_dict(self) -> Dict[str, Any]:
         """Get configuration as dictionary."""
