@@ -1,0 +1,226 @@
+# Intelligent MCP Chatbot Configuration
+# Copy this file to chatbot_config.yaml and modify as needed
+
+chatbot:
+  name: "Intelligent MCP Chatbot"
+  version: "1.0.0"
+  debug: false
+  environment: "development"  # development, staging, production
+
+# LLM Configuration
+llm:
+  default_provider: "openai"
+  providers:
+    openai:
+      type: "openai"
+      base_url: "https://api.openai.com/v1"
+      chat_completion_url: "/chat/completions"
+      api_key: "${OPENAI_API_KEY}"  # Use environment variable
+      model: "gpt-4"
+      max_tokens: 1000
+      temperature: 0.7
+      timeout: 30
+      retry_attempts: 3
+      retry_delay: 1.0
+      rate_limit: 100  # requests per minute
+    
+    anthropic:
+      type: "anthropic"
+      base_url: "https://api.anthropic.com"
+      chat_completion_url: "/v1/messages"
+      api_key: "${ANTHROPIC_API_KEY}"
+      model: "claude-3-sonnet"
+      max_tokens: 1000
+      temperature: 0.7
+      timeout: 30
+      retry_attempts: 3
+      retry_delay: 1.0
+      rate_limit: 50
+
+# MCP Server Configuration
+mcp:
+  auto_discovery: true
+  discovery_path: "./mcp_servers"
+  health_check_interval: 60  # seconds
+  connection_timeout: 30
+  max_connections: 10
+  
+  servers:
+    file_system_stdio:
+      name: "File System Server (STDIO)"
+      enabled: true
+      transport:
+        type: "stdio"
+        command: ["python", "-m", "mcp.server.filesystem"]
+        working_directory: "/path/to/mcp/server"
+        environment:
+          MCP_FS_ROOT: "/data"
+          MCP_FS_ALLOWED_EXTENSIONS: ".txt,.py,.js,.md"
+        timeout: 30
+    
+    file_system_http:
+      name: "File System Server (HTTP)"
+      enabled: true
+      transport:
+        type: "http"
+        base_url: "http://localhost:8080"
+        headers:
+          Authorization: "Bearer ${MCP_API_KEY}"
+        timeout: 30
+        health_check_endpoint: "/health"
+        retry_attempts: 3
+    
+    database_server:
+      name: "Database Server"
+      enabled: true
+      transport:
+        type: "http"
+        base_url: "http://localhost:8081"
+        headers:
+          Authorization: "Bearer ${DB_API_KEY}"
+        timeout: 30
+        health_check_endpoint: "/health"
+
+# Plugin Configuration
+plugins:
+  auto_load: true
+  plugin_path: "./plugins"
+  execution_strategy: "sequential"  # sequential, parallel
+  
+  enabled_plugins:
+    - "language_detection"
+    - "sentiment_analysis"
+    - "input_sanitization"
+    - "response_logging"
+    - "metrics_collection"
+  
+  plugin_config:
+    language_detection:
+      enabled: true
+      supported_languages: ["en", "es", "fr", "de", "ja", "zh"]
+    
+    sentiment_analysis:
+      enabled: true
+      model: "vader"
+      threshold: 0.1
+    
+    input_sanitization:
+      enabled: true
+      allowed_tags: ["b", "i", "em", "strong"]
+      max_length: 10000
+    
+    response_logging:
+      enabled: true
+      log_level: "INFO"
+      include_metadata: true
+    
+    metrics_collection:
+      enabled: true
+      collection_interval: 60
+      export_metrics: true
+
+# API Configuration
+api:
+  host: "0.0.0.0"
+  port: 8000
+  cors_origins: 
+    - "http://localhost:3000"
+    - "http://localhost:8080"
+  rate_limit: 100  # requests per minute
+  rate_limit_window: 60  # seconds
+  
+  # WebSocket configuration
+  websocket:
+    enabled: true
+    ping_interval: 30
+    pong_timeout: 10
+    max_connections: 1000
+  
+  # Authentication
+  auth:
+    enabled: false
+    secret_key: "${JWT_SECRET_KEY}"
+    algorithm: "HS256"
+    access_token_expire_minutes: 30
+
+# Logging Configuration
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "logs/chatbot.log"
+  max_file_size: "10MB"
+  backup_count: 5
+  console_output: true
+  
+  # Structured logging
+  structured:
+    enabled: true
+    include_timestamp: true
+    include_correlation_id: true
+
+# Session Management
+session:
+  timeout: 3600  # seconds (1 hour)
+  max_sessions_per_user: 10
+  cleanup_interval: 300  # seconds
+  storage_type: "memory"  # memory, redis, database
+
+# Performance Configuration
+performance:
+  max_concurrent_requests: 100
+  request_timeout: 60
+  connection_pool_size: 20
+  cache_enabled: true
+  cache_ttl: 300  # seconds
+
+# Security Configuration
+security:
+  input_validation: true
+  output_sanitization: true
+  rate_limiting: true
+  cors_enabled: true
+  
+  # SSL/TLS
+  ssl:
+    enabled: false
+    cert_file: "/path/to/cert.pem"
+    key_file: "/path/to/key.pem"
+
+# Monitoring and Metrics
+monitoring:
+  enabled: true
+  metrics_port: 9090
+  health_check_endpoint: "/health"
+  
+  # Prometheus metrics
+  prometheus:
+    enabled: true
+    metrics_path: "/metrics"
+  
+  # Health checks
+  health_checks:
+    - "mcp_servers"
+    - "llm_providers"
+    - "plugins"
+    - "database"
+
+# Error Handling
+error_handling:
+  circuit_breaker:
+    enabled: true
+    failure_threshold: 5
+    recovery_timeout: 60
+    expected_exception: "ConnectionError"
+  
+  retry:
+    max_attempts: 3
+    backoff_factor: 2.0
+    max_delay: 60
+
+# Development Configuration
+development:
+  hot_reload: true
+  debug_mode: true
+  auto_reload_plugins: true
+  mock_llm_responses: false
+  mock_mcp_responses: false 
