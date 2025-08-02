@@ -59,12 +59,13 @@ class LLMManager(LoggerMixin):
                     await self.health_check_task
                 except asyncio.CancelledError:
                     pass
+                self.health_check_task = None
             
-            # Disconnect all providers
-            for provider in self.providers.values():
-                await provider.disconnect()
+            # Remove all providers (this will disconnect them)
+            provider_names = list(self.providers.keys())
+            for provider_name in provider_names:
+                await self.remove_provider(provider_name)
             
-            self.providers.clear()
             self.logger.info("LLM Manager stopped")
             
             # Publish event

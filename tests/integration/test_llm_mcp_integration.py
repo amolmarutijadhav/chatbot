@@ -52,7 +52,13 @@ class TestLLMIntegration:
         """Test complete LLM manager lifecycle."""
         # Test start
         with patch.object(llm_manager, 'add_provider') as mock_add_provider:
-            mock_add_provider.return_value = True
+            # Mock add_provider to actually add a provider to the dictionary
+            async def mock_add_provider_impl(name, config):
+                mock_provider = AsyncMock()
+                llm_manager.providers[name] = mock_provider
+                return True
+            
+            mock_add_provider.side_effect = mock_add_provider_impl
 
             await llm_manager.start()
 
@@ -217,7 +223,13 @@ class TestMCPIntegration:
         """Test complete MCP manager lifecycle."""
         # Test start
         with patch.object(mcp_manager, 'add_server') as mock_add_server:
-            mock_add_server.return_value = True
+            # Mock add_server to actually add servers to the dictionary
+            async def mock_add_server_impl(name, config):
+                mock_server = AsyncMock()
+                mcp_manager.servers[name] = mock_server
+                return True
+            
+            mock_add_server.side_effect = mock_add_server_impl
 
             await mcp_manager.start()
 
@@ -301,6 +313,9 @@ class TestMCPIntegration:
         mock_server = AsyncMock()
         mock_server.is_connected = True
         mock_server.call_tool.return_value = {"result": "Tool executed successfully"}
+        # Mock capability checking methods
+        mock_server.has_capability.return_value = True
+        mock_server.get_capability_info.return_value = ["test_tool", "other_tool"]
 
         mcp_manager.servers["file_server"] = mock_server
 
@@ -584,6 +599,9 @@ class TestErrorHandlingIntegration:
         mock_server = AsyncMock()
         mock_server.is_connected = True
         mock_server.call_tool.side_effect = Exception("Server failed")
+        # Mock capability checking methods
+        mock_server.has_capability.return_value = True
+        mock_server.get_capability_info.return_value = ["test_tool"]
 
         mcp_manager.servers["file_server"] = mock_server
 

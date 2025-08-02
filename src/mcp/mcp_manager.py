@@ -56,12 +56,13 @@ class MCPManager(LoggerMixin):
                     await self.health_check_task
                 except asyncio.CancelledError:
                     pass
+                self.health_check_task = None
             
-            # Disconnect all servers
-            for server in self.servers.values():
-                await server.disconnect()
+            # Remove all servers (this will disconnect them)
+            server_names = list(self.servers.keys())
+            for server_name in server_names:
+                await self.remove_server(server_name)
             
-            self.servers.clear()
             self.logger.info("MCP Manager stopped")
             
             # Publish event
