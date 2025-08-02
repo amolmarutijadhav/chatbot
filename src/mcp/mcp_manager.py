@@ -183,11 +183,17 @@ class MCPManager(LoggerMixin):
         servers_with_tool = []
         
         for name, server in self.servers.items():
-            # Check if server has the tool in its capabilities
-            if server.has_capability("tools"):
-                tools_info = await server.get_capability_info("tools")
-                if tools_info and tool_name in tools_info:
+            try:
+                # Get the actual tools from the server
+                tools = await server.list_tools()
+                tool_names = [tool.get("name", "") for tool in tools]
+                
+                if tool_name in tool_names:
                     servers_with_tool.append(name)
+                    
+            except Exception as e:
+                self.logger.warning(f"Error getting tools from server '{name}': {e}")
+                continue
         
         return servers_with_tool
     

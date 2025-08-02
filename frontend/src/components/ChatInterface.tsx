@@ -57,9 +57,15 @@ const ChatInterface: React.FC = () => {
           session_id: session.session_id
         }]);
 
-      } catch (err) {
+      } catch (err: any) {
         console.error('Failed to initialize chat:', err);
-        setError('Failed to connect to the chatbot. Please check if the server is running.');
+        
+        // Check if it's a server connection issue
+        if (err.code === 'ERR_NETWORK' || err.response?.status >= 500) {
+          setError('Failed to connect to the chatbot. Please check if the server is running.');
+        } else {
+          setError('Failed to initialize chat. Please refresh the page and try again.');
+        }
       } finally {
         setLoading(false);
       }
@@ -107,9 +113,50 @@ const ChatInterface: React.FC = () => {
       const newStats = await systemAPI.getStats();
       setStats(newStats);
 
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to send message:', err);
-      setError('Failed to send message. Please try again.');
+      
+      // Check if it's a session not found error
+      if (err.response?.status === 500 && err.response?.data?.error?.includes('Session') && err.response?.data?.error?.includes('not found')) {
+        // Session expired, create a new one and retry
+        try {
+          console.log('Session expired, creating new session...');
+          const newSession = await chatAPI.createSession({
+            user_id: 'frontend-user',
+            metadata: { source: 'web-frontend' }
+          });
+          setCurrentSession(newSession.session_id);
+          
+          // Retry the message with new session
+          const retryResponse = await chatAPI.sendMessage({
+            message: content,
+            session_id: newSession.session_id,
+            message_type: 'chat'
+          });
+          
+          // Add assistant response
+          const assistantMessage: ChatMessageType = {
+            id: retryResponse.message_id,
+            content: retryResponse.content,
+            timestamp: retryResponse.timestamp,
+            type: 'assistant',
+            session_id: retryResponse.session_id,
+            processing_time_ms: retryResponse.processing_time_ms
+          };
+          
+          setMessages(prev => [...prev, assistantMessage]);
+          
+          // Refresh stats
+          const newStats = await systemAPI.getStats();
+          setStats(newStats);
+          
+        } catch (retryErr) {
+          console.error('Failed to create new session and retry:', retryErr);
+          setError('Session expired and failed to create new session. Please refresh the page.');
+        }
+      } else {
+        setError('Failed to send message. Please try again.');
+      }
     } finally {
       setIsTyping(false);
     }

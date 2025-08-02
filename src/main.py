@@ -29,6 +29,10 @@ class ChatbotApplication:
             
             # Setup logging
             logging_config = self.config_manager.get("logging", {})
+            # Fix parameter names for setup_logging
+            if "file" in logging_config:
+                logging_config["log_file"] = logging_config.pop("file")
+            logging_config.pop("format", None)
             setup_logging(**logging_config)
             
             # Validate configuration

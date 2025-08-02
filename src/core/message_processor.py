@@ -190,7 +190,7 @@ class MessageProcessor(LoggerMixin):
             if self.enable_mcp_fallback:
                 return Response(
                     content=f"I tried to process your request but encountered an issue: {str(e)}. Let me try to help you with a general response.",
-                    status="fallback",
+                    status="partial",
                     metadata={"error": str(e), "fallback": True}
                 )
             else:
@@ -285,24 +285,48 @@ class MessageProcessor(LoggerMixin):
         # Extract based on patterns
         if "list" in message_lower and ("file" in message_lower or "directory" in message_lower):
             tool_name = "list_files"
-            # Extract path if specified
-            path_match = re.search(r"in\s+([^\s]+)", message_lower)
+            # Extract path if specified - look for specific directory patterns
+            path_match = re.search(r"in\s+(the\s+)?([^\s]+(?:\s+[^\s]+)*?)(?:\s+directory)?", message_lower)
             if path_match:
-                arguments["path"] = path_match.group(1)
+                path = path_match.group(2)  # Get the actual path, not "the"
+                # Handle common cases
+                if path in ["current", "this", "here"]:
+                    arguments["path"] = "."
+                else:
+                    arguments["path"] = path
         
         elif "read" in message_lower and "file" in message_lower:
             tool_name = "read_file"
             # Extract filename
             file_match = re.search(r"read\s+([^\s]+)", message_lower)
             if file_match:
-                arguments["filename"] = file_match.group(1)
+                arguments["path"] = file_match.group(1)
         
         elif "search" in message_lower:
             tool_name = "search_files"
-            # Extract search term
-            search_match = re.search(r"search\s+for\s+([^\s]+)", message_lower)
-            if search_match:
-                arguments["query"] = search_match.group(1)
+            # Extract search term - handle various patterns
+            search_patterns = [
+                r"search\s+for\s+([^\s]+)",
+                r"search\s+([^\s]+)",
+                r"find\s+files\s+containing\s+([^\s]+)",
+                r"find\s+([^\s]+)\s+files"
+            ]
+            
+            for pattern in search_patterns:
+                search_match = re.search(pattern, message_lower)
+                if search_match:
+                    search_term = search_match.group(1)
+                    # Convert to glob pattern
+                    if "test" in search_term:
+                        arguments["pattern"] = "*test*"
+                        arguments["recursive"] = True
+                    elif "py" in search_term:
+                        arguments["pattern"] = "*.py"
+                        arguments["recursive"] = True
+                    else:
+                        arguments["pattern"] = f"*{search_term}*"
+                        arguments["recursive"] = True
+                    break
         
         return tool_name, arguments
     
@@ -313,7 +337,12 @@ class MessageProcessor(LoggerMixin):
         elif "files" in result:
             files = result["files"]
             if isinstance(files, list):
-                return f"Found {len(files)} files:\n" + "\n".join(f"- {f}" for f in files)
+                if len(files) == 0:
+                    return "No files found."
+                elif len(files) <= 10:
+                    return f"Found {len(files)} files:\n" + "\n".join(f"- {f.get('name', f)} ({f.get('type', 'unknown')})" for f in files)
+                else:
+                    return f"Found {len(files)} files. Showing first 10:\n" + "\n".join(f"- {f.get('name', f)} ({f.get('type', 'unknown')})" for f in files[:10]) + f"\n... and {len(files) - 10} more files"
             else:
                 return str(files)
         elif "data" in result:

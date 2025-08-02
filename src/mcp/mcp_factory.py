@@ -51,8 +51,15 @@ class MCPFactory:
     @classmethod
     def create_transport_from_config(cls, config: Dict[str, Any]) -> BaseTransport:
         """Create a transport from configuration."""
-        transport_type = config.get("transport", "stdio")
-        return cls.create_transport(transport_type, config)
+        # If config has a 'transport' key, it's a server config, extract transport config
+        if "transport" in config and isinstance(config["transport"], dict):
+            transport_config = config["transport"]
+            transport_type = transport_config.get("type", "stdio")
+            return cls.create_transport(transport_type, transport_config)
+        else:
+            # Direct transport config
+            transport_type = config.get("type", "stdio")
+            return cls.create_transport(transport_type, config)
     
     @classmethod
     def validate_transport_config(cls, transport_type: str, config: Dict[str, Any]) -> bool:
@@ -99,8 +106,9 @@ class MCPFactory:
                     return False
             
             # Validate transport configuration
-            transport_type = config.get("transport")
-            if not cls.validate_transport_config(transport_type, config):
+            transport_config = config.get("transport", {})
+            transport_type = transport_config.get("type", "stdio")
+            if not cls.validate_transport_config(transport_type, transport_config):
                 return False
             
             return True

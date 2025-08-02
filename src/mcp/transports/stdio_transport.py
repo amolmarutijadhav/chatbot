@@ -26,19 +26,40 @@ class STDIOTransport(BaseTransport, LoggerMixin):
     async def connect(self) -> bool:
         """Connect to the MCP server via STDIO."""
         try:
+            self.logger.debug(f"Connecting to MCP server with config: {self.config}")
+            
             if not self.command:
                 self.logger.error("No command specified for STDIO transport")
                 return False
             
+            # Auto-detect Python executable if command is "python"
+            if self.command == "python":
+                self.logger.debug("Auto-detecting Python executable")
+                self.command = self._get_python_executable()
+                self.logger.info(f"Using Python executable: {self.command}")
+            
             # Start the process
             cmd = [self.command] + self.args
+            
+            # Ensure environment is a proper dictionary
+            env_dict = None
+            if self.env:
+                if isinstance(self.env, dict):
+                    env_dict = self.env
+                else:
+                    self.logger.warning(f"Environment is not a dict: {type(self.env)}")
+            
+            self.logger.debug(f"Starting process: {cmd}")
+            self.logger.debug(f"Working directory: {self.working_dir}")
+            self.logger.debug(f"Environment: {env_dict}")
+            
             self.process = Popen(
                 cmd,
                 stdin=PIPE,
                 stdout=PIPE,
                 stderr=PIPE,
                 cwd=self.working_dir,
-                env=self.env,
+                env=env_dict,
                 text=True,
                 bufsize=1
             )
@@ -140,4 +161,29 @@ class STDIOTransport(BaseTransport, LoggerMixin):
         if not self.process:
             return False
         
-        return self.process.poll() is None 
+        return self.process.poll() is None
+    
+    def _get_python_executable(self) -> str:
+        """Get the Python executable path, preferring virtual environment."""
+        import os
+        
+        try:
+            # Check for virtual environment
+            venv_paths = [
+                ".venv/Scripts/python.exe",  # Windows
+                ".venv/bin/python",          # Linux/Mac
+                "venv/Scripts/python.exe",   # Windows (alternative)
+                "venv/bin/python",           # Linux/Mac (alternative)
+            ]
+            
+            for venv_path in venv_paths:
+                if os.path.exists(venv_path):
+                    self.logger.debug(f"Found Python executable: {venv_path}")
+                    return venv_path
+            
+            # Fallback to system Python
+            self.logger.debug("Using system Python")
+            return "python"
+        except Exception as e:
+            self.logger.error(f"Error getting Python executable: {e}")
+            return "python" 
