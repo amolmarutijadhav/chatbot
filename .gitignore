@@ -222,4 +222,49 @@ coverage.xml
 
 # Local development files
 local_config.yaml
-dev_config.yaml 
+dev_config.yaml
+
+# Frontend (React/Node.js) specific
+frontend/node_modules/
+frontend/.pnp
+frontend/.pnp.js
+
+# Frontend build outputs
+frontend/build/
+frontend/dist/
+frontend/out/
+
+# Frontend environment files
+frontend/.env
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+
+# Frontend logs
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/lerna-debug.log*
+
+# Frontend cache
+frontend/.cache/
+frontend/.parcel-cache/
+frontend/.next/
+frontend/.nuxt/
+
+# Frontend IDE files
+frontend/.idea/
+frontend/.vscode/
+
+# Frontend OS files
+frontend/.DS_Store
+frontend/Thumbs.db
+
+# Frontend testing
+frontend/coverage/
+frontend/.nyc_output/
+
+# Frontend package manager files (keep package.json, ignore lock files if needed)
+# frontend/package-lock.json
+# frontend/yarn.lock 

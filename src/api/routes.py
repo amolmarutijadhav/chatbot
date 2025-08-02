@@ -44,7 +44,6 @@ def init_chatbot_engine(engine: ChatbotEngine):
 @router.post("/chat", response_model=ChatResponse, summary="Send a chat message")
 async def chat_endpoint(
     request: ChatRequest,
-    current_user: TokenData = Depends(get_current_user),
     req: Request = None
 ):
     """Send a chat message and get AI response."""
@@ -54,7 +53,7 @@ async def chat_endpoint(
         
         # Process message
         response = await engine.process_message(
-            user_id=current_user.user_id,
+            user_id="anonymous",
             message=request.message,
             session_id=request.session_id,
             message_type=request.message_type,
@@ -67,7 +66,7 @@ async def chat_endpoint(
         # Create response
         chat_response = ChatResponse(
             content=response.content,
-            session_id=response.session_id,
+            session_id=request.session_id or "unknown",  # Use the session_id from request
             message_id=str(uuid.uuid4()),
             timestamp=datetime.utcnow(),
             status=response.status,
@@ -78,8 +77,8 @@ async def chat_endpoint(
         logger.info(
             f"Chat message processed successfully",
             extra={
-                "user_id": current_user.user_id,
-                "session_id": response.session_id,
+                "user_id": "anonymous",
+                "session_id": request.session_id or "unknown",
                 "processing_time_ms": processing_time_ms,
                 "request_id": getattr(req.state, 'request_id', None)
             }
@@ -97,8 +96,7 @@ async def chat_endpoint(
 
 @router.post("/sessions", response_model=SessionResponse, summary="Create a new session")
 async def create_session(
-    session_request: SessionRequest,
-    current_user: TokenData = Depends(get_current_user)
+    session_request: SessionRequest
 ):
     """Create a new chat session."""
     try:
@@ -106,7 +104,7 @@ async def create_session(
         
         # Create session
         session = await engine.create_session(
-            user_id=session_request.user_id or current_user.user_id,
+            user_id=session_request.user_id or "anonymous",
             metadata=session_request.metadata
         )
         
@@ -116,9 +114,9 @@ async def create_session(
             user_id=session.user_id,
             created_at=session.created_at,
             last_activity=session.last_activity,
-            message_count=session.message_count,
+            message_count=0,  # Default for new sessions
             metadata=session.metadata,
-            status=session.status
+            status="active" if session.is_active else "inactive"
         )
         
         logger.info(f"Session created: {session.session_id}")
@@ -156,9 +154,9 @@ async def get_session(
             user_id=session.user_id,
             created_at=session.created_at,
             last_activity=session.last_activity,
-            message_count=session.message_count,
+            message_count=0,  # Default value since Session model doesn't have this field
             metadata=session.metadata,
-            status=session.status
+            status="active" if session.is_active else "inactive"
         )
         
         return session_response
