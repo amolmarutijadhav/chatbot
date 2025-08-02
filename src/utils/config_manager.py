@@ -28,6 +28,9 @@ class ConfigurationManager:
     
     def load_configuration(self):
         """Load configuration from files and environment."""
+        # Load from .env file first
+        self._load_dotenv()
+        
         # Load from YAML files
         config_files = [
             "config/chatbot_config.yaml",
@@ -44,6 +47,20 @@ class ConfigurationManager:
         
         # Override with environment variables
         self._load_from_environment()
+    
+    def _load_dotenv(self):
+        """Load environment variables from .env file."""
+        try:
+            from dotenv import load_dotenv
+            env_file = Path(".env")
+            if env_file.exists():
+                load_dotenv(env_file)
+        except ImportError:
+            # python-dotenv not installed, skip .env loading
+            pass
+        except Exception:
+            # Ignore any errors loading .env file
+            pass
     
     def _load_from_environment(self):
         """Load configuration from environment variables."""
