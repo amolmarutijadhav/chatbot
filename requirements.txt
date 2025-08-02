@@ -34,6 +34,13 @@ mypy==1.7.1
 
 # Security
 cryptography==42.0.8
+PyJWT==2.8.0
+
+# Rate limiting
+slowapi==0.1.9
+
+# System monitoring
+psutil==5.9.6
 
 # Utilities
 python-multipart==0.0.6
