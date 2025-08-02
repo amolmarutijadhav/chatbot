@@ -282,8 +282,54 @@ class MessageProcessor(LoggerMixin):
         tool_name = "list_files"
         arguments = {"path": "."}
         
-        # Extract based on patterns
-        if "list" in message_lower and ("file" in message_lower or "directory" in message_lower):
+        # Check for read patterns FIRST (before list patterns to avoid conflicts)
+        if "read" in message_lower:
+            tool_name = "read_file"
+            # Extract filename - improved pattern
+            file_patterns = [
+                r"read\s+(?:the\s+)?file\s+([^\s]+(?:\s+[^\s]+)*?)",
+                r"read\s+([^\s]+(?:\s+[^\s]+)*?)",
+            ]
+            
+            for pattern in file_patterns:
+                file_match = re.search(pattern, message_lower)
+                if file_match:
+                    filename = file_match.group(1).strip()
+                    # Skip if the extracted word is just "file"
+                    if filename != "file":
+                        arguments["path"] = filename
+                        break
+        
+        # Check for search patterns (before list patterns to avoid conflicts)
+        elif "search" in message_lower or ("find" in message_lower and "file" in message_lower):
+            tool_name = "search_files"
+            # Extract search term - handle various patterns
+            search_patterns = [
+                r"search\s+for\s+files?\s+with\s+([^\s]+(?:\s+[^\s]+)*?)\s+in\s+the\s+name",
+                r"search\s+for\s+([^\s]+(?:\s+[^\s]+)*?)\s+files?",
+                r"search\s+for\s+files?\s+containing\s+([^\s]+(?:\s+[^\s]+)*?)",
+                r"find\s+files?\s+with\s+([^\s]+(?:\s+[^\s]+)*?)\s+in\s+the\s+name",
+                r"find\s+([^\s]+(?:\s+[^\s]+)*?)\s+files?",
+                r"search\s+([^\s]+(?:\s+[^\s]+)*?)",
+            ]
+            
+            for pattern in search_patterns:
+                search_match = re.search(pattern, message_lower)
+                if search_match:
+                    search_term = search_match.group(1).strip()
+                    # Convert to glob pattern
+                    if "test" in search_term:
+                        arguments["pattern"] = "*test*"
+                        arguments["recursive"] = True
+                    elif "py" in search_term and "python" not in search_term:
+                        arguments["pattern"] = "*.py"
+                        arguments["recursive"] = True
+                    else:
+                        arguments["pattern"] = f"*{search_term}*"
+                        arguments["recursive"] = True
+                    break
+        
+        elif "list" in message_lower and ("file" in message_lower or "directory" in message_lower):
             tool_name = "list_files"
             # Extract path if specified - look for specific directory patterns
             path_match = re.search(r"in\s+(the\s+)?([^\s]+(?:\s+[^\s]+)*?)(?:\s+directory)?", message_lower)
@@ -294,39 +340,6 @@ class MessageProcessor(LoggerMixin):
                     arguments["path"] = "."
                 else:
                     arguments["path"] = path
-        
-        elif "read" in message_lower and "file" in message_lower:
-            tool_name = "read_file"
-            # Extract filename
-            file_match = re.search(r"read\s+([^\s]+)", message_lower)
-            if file_match:
-                arguments["path"] = file_match.group(1)
-        
-        elif "search" in message_lower:
-            tool_name = "search_files"
-            # Extract search term - handle various patterns
-            search_patterns = [
-                r"search\s+for\s+([^\s]+)",
-                r"search\s+([^\s]+)",
-                r"find\s+files\s+containing\s+([^\s]+)",
-                r"find\s+([^\s]+)\s+files"
-            ]
-            
-            for pattern in search_patterns:
-                search_match = re.search(pattern, message_lower)
-                if search_match:
-                    search_term = search_match.group(1)
-                    # Convert to glob pattern
-                    if "test" in search_term:
-                        arguments["pattern"] = "*test*"
-                        arguments["recursive"] = True
-                    elif "py" in search_term:
-                        arguments["pattern"] = "*.py"
-                        arguments["recursive"] = True
-                    else:
-                        arguments["pattern"] = f"*{search_term}*"
-                        arguments["recursive"] = True
-                    break
         
         return tool_name, arguments
     
