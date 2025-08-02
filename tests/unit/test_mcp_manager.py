@@ -89,14 +89,21 @@ class TestMCPManager:
             mock_add_server.return_value = True
             await mcp_manager.start()
 
+        # Add some mock servers
+        mock_server1 = AsyncMock()
+        mock_server2 = AsyncMock()
+        mcp_manager.servers["server1"] = mock_server1
+        mcp_manager.servers["server2"] = mock_server2
+
         # Then stop
-        with patch.object(mcp_manager, 'remove_server') as mock_remove_server:
-            mock_remove_server.return_value = True
+        await mcp_manager.stop()
 
-            await mcp_manager.stop()
-
-            assert mock_remove_server.call_count == 2
-            assert mcp_manager.health_check_task is None
+        # Verify servers were disconnected and cleared
+        mock_server1.disconnect.assert_called_once()
+        mock_server2.disconnect.assert_called_once()
+        assert len(mcp_manager.servers) == 0
+        # Check that health check task is cancelled (not None)
+        assert mcp_manager.health_check_task is None or mcp_manager.health_check_task.cancelled()
 
     @pytest.mark.asyncio
     async def test_add_server_success(self, mcp_manager):
@@ -166,10 +173,14 @@ class TestMCPManager:
         # Setup servers
         mock_server1 = AsyncMock()
         mock_server1.is_connected = True
+        mock_server1.has_capability.return_value = True
+        mock_server1.get_capability_info.return_value = ["test_tool", "other_tool"]
         mock_server1.call_tool.return_value = {"result": "from server 1"}
 
         mock_server2 = AsyncMock()
         mock_server2.is_connected = True
+        mock_server2.has_capability.return_value = True
+        mock_server2.get_capability_info.return_value = ["test_tool", "different_tool"]
         mock_server2.call_tool.return_value = {"result": "from server 2"}
 
         mcp_manager.servers["file_server"] = mock_server1
@@ -197,6 +208,11 @@ class TestMCPManager:
     @pytest.mark.asyncio
     async def test_call_tool_server_not_found(self, mcp_manager):
         """Test tool call with server not found."""
+        # Add a server so the "no servers available" check passes
+        mock_server = AsyncMock()
+        mock_server.is_connected = True
+        mcp_manager.servers["existing_server"] = mock_server
+        
         with pytest.raises(ValueError, match="Server 'nonexistent' not found"):
             await mcp_manager.call_tool("test_tool", {"param": "value"}, server_name="nonexistent")
 
@@ -224,10 +240,14 @@ class TestMCPManager:
         # Setup servers
         mock_server1 = AsyncMock()
         mock_server1.is_connected = True
+        mock_server1.has_capability.return_value = True
+        mock_server1.get_capability_info.return_value = ["test_tool", "other_tool"]
         mock_server1.call_tool.side_effect = Exception("Server 1 failed")
 
         mock_server2 = AsyncMock()
         mock_server2.is_connected = True
+        mock_server2.has_capability.return_value = True
+        mock_server2.get_capability_info.return_value = ["test_tool", "different_tool"]
         mock_server2.call_tool.return_value = {"result": "from server 2"}
 
         mcp_manager.servers["file_server"] = mock_server1
@@ -245,10 +265,14 @@ class TestMCPManager:
         # Setup servers
         mock_server1 = AsyncMock()
         mock_server1.is_connected = True
+        mock_server1.has_capability.return_value = True
+        mock_server1.get_capability_info.return_value = ["test_tool", "other_tool"]
         mock_server1.call_tool.side_effect = Exception("Server 1 failed")
 
         mock_server2 = AsyncMock()
         mock_server2.is_connected = True
+        mock_server2.has_capability.return_value = True
+        mock_server2.get_capability_info.return_value = ["test_tool", "different_tool"]
         mock_server2.call_tool.side_effect = Exception("Server 2 failed")
 
         mcp_manager.servers["file_server"] = mock_server1

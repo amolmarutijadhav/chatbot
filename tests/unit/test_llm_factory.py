@@ -111,12 +111,16 @@ class TestLLMFactory:
             "api_key": "test_key"
         }
 
-        # Mock the provider class to raise an exception
-        with patch('llm.llm_factory.OpenAIProvider') as mock_provider_class:
-            mock_provider_class.side_effect = Exception("Provider creation failed")
+        # Mock the provider class to raise an exception during instantiation
+        original_providers = LLMFactory._providers.copy()
+        try:
+            LLMFactory._providers["openai"] = Mock(side_effect=Exception("Provider creation failed"))
 
             with pytest.raises(Exception, match="Provider creation failed"):
                 LLMFactory.create_provider("openai", config)
+        finally:
+            # Restore original providers
+            LLMFactory._providers = original_providers
 
     def test_validate_provider_config_success(self):
         """Test successful provider configuration validation."""

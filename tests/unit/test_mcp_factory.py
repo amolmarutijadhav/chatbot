@@ -95,12 +95,16 @@ class TestMCPFactory:
             "args": ["test"]
         }
 
-        # Mock the transport class to raise an exception
-        with patch('mcp.mcp_factory.STDIOTransport') as mock_transport_class:
-            mock_transport_class.side_effect = Exception("Transport creation failed")
+        # Mock the transport class to raise an exception during instantiation
+        original_transports = MCPFactory._transports.copy()
+        try:
+            MCPFactory._transports["stdio"] = Mock(side_effect=Exception("Transport creation failed"))
 
             with pytest.raises(Exception, match="Transport creation failed"):
                 MCPFactory.create_transport("stdio", config)
+        finally:
+            # Restore original transports
+            MCPFactory._transports = original_transports
 
     def test_validate_transport_config_success(self):
         """Test successful transport configuration validation."""

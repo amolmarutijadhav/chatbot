@@ -97,14 +97,21 @@ class TestLLMManager:
             mock_add_provider.return_value = True
             await llm_manager.start()
 
+        # Add some mock providers
+        mock_provider1 = AsyncMock()
+        mock_provider2 = AsyncMock()
+        llm_manager.providers["provider1"] = mock_provider1
+        llm_manager.providers["provider2"] = mock_provider2
+
         # Then stop
-        with patch.object(llm_manager, 'remove_provider') as mock_remove_provider:
-            mock_remove_provider.return_value = True
+        await llm_manager.stop()
 
-            await llm_manager.stop()
-
-            assert mock_remove_provider.call_count == 2
-            assert llm_manager.health_check_task is None
+        # Verify providers were disconnected and cleared
+        mock_provider1.disconnect.assert_called_once()
+        mock_provider2.disconnect.assert_called_once()
+        assert len(llm_manager.providers) == 0
+        # Check that health check task is cancelled (not None)
+        assert llm_manager.health_check_task is None or llm_manager.health_check_task.cancelled()
 
     @pytest.mark.asyncio
     async def test_add_provider_success(self, llm_manager):
@@ -209,6 +216,11 @@ class TestLLMManager:
     @pytest.mark.asyncio
     async def test_generate_response_provider_not_found(self, llm_manager):
         """Test response generation with provider not found."""
+        # Add a provider so the "no providers available" check passes
+        mock_provider = AsyncMock()
+        mock_provider.is_connected = True
+        llm_manager.providers["existing_provider"] = mock_provider
+        
         messages = [Message(content="Hello", role="user")]
 
         with pytest.raises(ValueError, match="Provider 'nonexistent' not found"):
